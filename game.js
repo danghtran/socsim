@@ -22,15 +22,15 @@
     { id: "sso-01", initials: "SS", hue: 280 },
   ];
 
-  const SHIFT_MS = 100000;
+  const SHIFT_MS = 120000;
   const MAX_Q = 3;
   const SEV_MAX = 3;
-  const QUERY_MS = 520;
-  const SPAWN_FIRST = 600;
-  const SPAWN_MIN = 5600;
-  const SPAWN_MAX = 8200;
-  const PATIENCE = 24000;
-  const PATIENCE_SEV = 1800;
+  const QUERY_MS = 480;
+  const SPAWN_MIN = 9000;
+  const SPAWN_MAX = 12000;
+  const TUTORIAL_SPAWN = 14000;
+  const PATIENCE = 36000;
+  const PATIENCE_SEV = 2000;
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -111,6 +111,7 @@
     const play = fixed?.play || pick(Object.keys(PLAYBOOKS));
     const tool = fixed?.tool || pick(Object.keys(TOOLS));
     const sev = fixed?.sev ?? Math.floor(Math.random() * (SEV_MAX + 1));
+    const base = S.firstDone ? PATIENCE : 48000;
     return {
       id: S.uid++,
       host,
@@ -118,7 +119,7 @@
       tool,
       sev,
       born: S.now,
-      wait: PATIENCE - sev * PATIENCE_SEV,
+      wait: Math.max(16000, base - sev * PATIENCE_SEV),
     };
   }
 
@@ -130,37 +131,29 @@
     return { play: null, queried: false, tool: null, sev: 0 };
   }
 
-  function nextHint() {
+  function nextStep() {
     const a = focused();
     const t = S.ticket;
-    if (!a) return "Queue is clear. Stay ready.";
-    if (!t) return "Open a ticket.";
-    if (!t.play) return `Assign playbook: ${PLAYBOOKS[a.play].label}.`;
-    if (!t.queried) return "Pull logs from the SIEM.";
-    if (!t.tool) return `Contain with ${TOOLS[a.tool].label}.`;
-    if (t.sev !== a.sev) return `Dial severity to ${a.sev}.`;
-    return "Looks right — push the case.";
+    if (!a) return { id: null, msg: "Queue is clear. Stay ready." };
+    if (!t) return { id: "btn-open", msg: "Open a ticket." };
+    if (t.play !== a.play) return { id: `btn-${a.play}`, msg: `Assign playbook: ${PLAYBOOKS[a.play].label}.` };
+    if (!t.queried) return { id: "btn-query", msg: "Pull logs from the SIEM." };
+    if (t.tool !== a.tool) return { id: `btn-${a.tool}`, msg: `Contain with ${TOOLS[a.tool].label}.` };
+    if (t.sev !== a.sev) return { id: "btn-sev", msg: `Dial severity to ${a.sev}.` };
+    return { id: "btn-push", msg: "Looks right — push the case." };
   }
+
+  function nextHint() { return nextStep().msg; }
 
   function highlight() {
     document.querySelectorAll(".need").forEach((n) => n.classList.remove("need"));
-    if (!S.tutorial || S.firstDone) {
-      els.hint.hidden = true;
-      return;
+    const step = nextStep();
+    const coaching = S.tutorial && !S.firstDone;
+    els.hint.hidden = !coaching;
+    if (coaching) {
+      els.hint.textContent = step.msg;
+      if (step.id) $(step.id)?.classList.add("need");
     }
-    const a = focused();
-    const t = S.ticket;
-    let id = "btn-open";
-    if (!a) id = null;
-    else if (!t) id = "btn-open";
-    else if (!t.play) id = `btn-${a.play}`;
-    else if (!t.queried) id = "btn-query";
-    else if (!t.tool) id = `btn-${a.tool}`;
-    else if (t.sev !== a.sev) id = "btn-sev";
-    else id = "btn-push";
-    if (id) $(id)?.classList.add("need");
-    els.hint.hidden = false;
-    els.hint.textContent = nextHint();
   }
 
   function starGlyph(n) {
@@ -223,18 +216,17 @@
     const playOk = t.play && a && t.play === a.play;
     const toolOk = t.tool && a && t.tool === a.tool;
     const sevOk = a && t.sev === a.sev;
-    const ready = t.play && t.queried && t.tool;
-    const face = !t.play ? "…" : ready && sevOk ? "^_^" : ready ? "o_o" : "-_-";
+    const ready = playOk && t.queried && toolOk && sevOk;
+    const face = !t.play ? "-_-" : ready ? "^_^" : t.queried ? "o_o" : "-_-";
     els.work.innerHTML = `
       <div class="case">
-        <div class="face">
-          <div>${face}  CASE-${String(100 + (a?.id || 0)).slice(-3)}</div>
-          <div style="margin-top:6px">
-            <span class="chip ${t.play ? (playOk ? "ok" : "bad") : ""}">${t.play ? PLAYBOOKS[t.play].label : "playbook?"}</span>
-            <span class="chip ${t.queried ? "ok" : "warn"}">${t.queried ? "logs" : "no logs"}</span>
-            <span class="chip ${t.tool ? (toolOk ? "ok" : "bad") : ""}">${t.tool ? TOOLS[t.tool].label : "contain?"}</span>
-            <span class="chip ${sevOk ? "ok" : "warn"}">sev ${t.sev}</span>
-          </div>
+        <div class="emo">${face}</div>
+        <div class="id">CASE-${String(100 + (a?.id || 0)).slice(-3)}</div>
+        <div class="chips">
+          <span class="chip ${t.play ? (playOk ? "ok" : "bad") : ""}">${t.play ? PLAYBOOKS[t.play].label : "playbook?"}</span>
+          <span class="chip ${t.queried ? "ok" : "warn"}">${t.queried ? "logs" : "no logs"}</span>
+          <span class="chip ${t.tool ? (toolOk ? "ok" : "bad") : ""}">${t.tool ? TOOLS[t.tool].label : "contain?"}</span>
+          <span class="chip ${sevOk ? "ok" : "warn"}">sev ${t.sev}${sevOk ? " ✓" : ""}</span>
         </div>
         <p class="meta">${nextHint()}</p>
       </div>`;
@@ -267,7 +259,7 @@
     els.rep.innerHTML = `${S.rep}<small>rep</small>`;
     els.stars.textContent = starGlyph(S.stars);
     els.starN.textContent = `${S.stars.toFixed(1)} trust`;
-    els.tag.textContent = S.paused ? "PAUSED" : left < 15000 ? "WRAP UP" : "SHIFT OPEN";
+    els.tag.textContent = S.paused ? "PAUSED" : left < 15000 ? `WRAP UP · ${fmt(left)}` : "SHIFT OPEN";
     els.mute.textContent = S.muted ? "✕" : "♪";
   }
 
@@ -404,7 +396,10 @@
     if (!S.ticket) return;
     S.ticket = null;
     S.querying = false;
+    els.work.classList.add("flash");
+    setTimeout(() => els.work.classList.remove("flash"), 220);
     tone(200, 0.08);
+    toast("Bench cleared");
     paint();
   }
 
@@ -434,6 +429,7 @@
     }
     if (why) {
       fly("mismatch", true);
+      toast(`Mismatch: ${why}`, "bad");
       S.ticket = null;
       drop(a.id, "wrong");
       paint();
@@ -456,7 +452,10 @@
     }
     if (S.now >= S.nextSpawn) {
       if (S.queue.length < MAX_Q) spawn();
-      S.nextSpawn = S.now + SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN);
+      const gap = S.firstDone
+        ? SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN)
+        : TUTORIAL_SPAWN;
+      S.nextSpawn = S.now + gap;
     }
     for (const a of [...S.queue]) {
       if (S.now - a.born >= a.wait) drop(a.id, "sla");
@@ -517,7 +516,7 @@
     S.t0 = performance.now();
     S.now = S.t0;
     spawn({ play: "phish", tool: "isolate", sev: 1 });
-    S.nextSpawn = S.now + SPAWN_FIRST + 4200;
+    S.nextSpawn = S.now + TUTORIAL_SPAWN;
     paint();
     cancelAnimationFrame(S.raf);
     S.raf = requestAnimationFrame(tick);

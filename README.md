@@ -24,4 +24,4 @@ Then visit http://localhost:8080
 6. Click the **severity** dial until it matches (0–3).
 7. **Push case**. Dump resets a bad bench without failing the alert.
 
-A shift is about 100 seconds. Three alerts can wait at once. Missed SLA or a wrong push costs trust.
+A shift is about two minutes. Night 1 gives you a long first SLA so you can learn the loop. Three alerts can wait at once. Missed SLA or a wrong push costs trust.
