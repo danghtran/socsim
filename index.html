@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>SOC SIM — Night Shift</title>
+  <meta name="description" content="Match incoming alerts: pick the playbook, pull logs, contain, set severity, push. A one-loop cybersecurity shift.">
+  <meta name="theme-color" content="#071018">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23071a22'/%3E%3Cpath d='M32 8l22 8v16c0 14-9 24-22 28C19 56 10 46 10 32V16z' fill='%233ee0c5'/%3E%3Ccircle cx='32' cy='30' r='4' fill='%23071018'/%3E%3Cpath d='M24 40c4 5 12 5 16 0' stroke='%23071018' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <section id="splash" class="screen">
+      <div class="splash-art" aria-hidden="true">
+        <svg viewBox="0 0 280 200" class="rack">
+          <defs>
+            <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#123044"/>
+              <stop offset="1" stop-color="#0a1c28"/>
+            </linearGradient>
+          </defs>
+          <rect x="18" y="18" width="244" height="164" rx="18" fill="url(#g1)" stroke="#2a5a6e" stroke-width="3"/>
+          <rect x="36" y="36" width="208" height="18" rx="4" fill="#0c2430"/>
+          <rect x="44" y="41" width="70" height="8" rx="2" fill="#3ee0c5"/>
+          <rect x="122" y="41" width="28" height="8" rx="2" fill="#f5c542"/>
+          <rect x="36" y="64" width="208" height="18" rx="4" fill="#0c2430"/>
+          <rect x="44" y="69" width="48" height="8" rx="2" fill="#ff5d8f"/>
+          <rect x="100" y="69" width="90" height="8" rx="2" fill="#3ee0c5" opacity=".45"/>
+          <rect x="36" y="92" width="208" height="18" rx="4" fill="#0c2430"/>
+          <rect x="44" y="97" width="120" height="8" rx="2" fill="#3ee0c5" opacity=".7"/>
+          <g transform="translate(168 96)">
+            <g class="mascot">
+              <path d="M40 8l36 12v28c0 22-14 36-36 42C18 84 4 70 4 48V20z" fill="#3ee0c5"/>
+              <circle cx="28" cy="42" r="4.2" fill="#071018"/>
+              <circle cx="52" cy="42" r="4.2" fill="#071018"/>
+              <path d="M28 56c6 8 18 8 24 0" stroke="#071018" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+              <circle cx="26" cy="40" r="1.3" fill="#fff"/>
+              <circle cx="50" cy="40" r="1.3" fill="#fff"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="splash-copy">
+        <p class="kicker">Night-shift desk · one loop</p>
+        <h1>SOC SIM</h1>
+        <p class="lede">Alerts pile up. Match playbook, logs, containment, and severity — then push before the SLA burns.</p>
+        <div class="scale" aria-label="Severity scale 0 to 3">
+          <span class="s0">0</span><span class="s1">1</span><span class="s2">2</span><span class="s3">3</span>
+        </div>
+        <button class="big" id="btn-start">Start shift</button>
+        <button class="ghost" id="btn-how">How to play</button>
+      </div>
+    </section>
+
+    <section id="shift" class="screen" hidden>
+      <header id="top">
+        <div class="l">
+          <button class="ibtn" id="btn-pause" title="Pause" aria-label="Pause">II</button>
+          <div>
+            <div class="day">Night 1</div>
+            <div class="sub" id="clock">00:00</div>
+          </div>
+        </div>
+        <div class="money" id="rep">0<small>rep</small></div>
+        <div class="r">
+          <div class="stars" id="stars">★★★★★</div>
+          <div class="sub" id="star-n">5.0 trust</div>
+        </div>
+        <button class="ibtn" id="btn-mute" title="Mute" aria-label="Mute sound">♪</button>
+      </header>
+
+      <div id="stage">
+        <aside class="floor">
+          <div class="sign">
+            <div class="lanterns" aria-hidden="true"><i></i><i></i><i></i></div>
+            <h2>Packet Desk</h2>
+            <p>Inbound queue · live SLA</p>
+            <span class="ren" id="shift-tag">SHIFT OPEN</span>
+          </div>
+          <div class="queue" id="queue"></div>
+          <div class="bubble" id="bubble">
+            <div class="idle">Waiting on the wire…</div>
+          </div>
+        </aside>
+
+        <main class="ops">
+          <div class="lbl">Playbooks</div>
+          <div class="row r1" id="playbooks">
+            <button class="st" data-act="open" id="btn-open">
+              <span class="ico" aria-hidden="true">▣</span>
+              <span class="t">Open ticket</span>
+            </button>
+            <button class="st pb" data-play="phish" id="btn-phish">
+              <span class="ico">@</span>
+              <span class="t">Phish</span>
+            </button>
+            <button class="st pb" data-play="malware" id="btn-malware">
+              <span class="ico">⌘</span>
+              <span class="t">Malware</span>
+            </button>
+            <button class="st pb" data-play="intrusion" id="btn-intrusion">
+              <span class="ico">#</span>
+              <span class="t">Intrusion</span>
+            </button>
+          </div>
+
+          <div class="row r2">
+            <button class="st console" id="btn-query" data-act="query">
+              <span class="gauge"><i id="needle"></i></span>
+              <span class="t">SIEM · pull logs</span>
+            </button>
+            <div class="work" id="work">
+              <p class="ph">No case open.<br>Open a ticket.</p>
+            </div>
+            <button class="st chili" id="btn-sev" data-act="sev">
+              <span class="lv" id="sev-n">0</span>
+              <span class="t">Severity</span>
+            </button>
+          </div>
+
+          <div class="row r3">
+            <button class="serve" id="btn-push">Push case</button>
+            <button class="trash" id="btn-dump">Dump</button>
+          </div>
+
+          <div class="lbl">Containment</div>
+          <div class="row trays" id="tools">
+            <button class="st tray" data-tool="isolate" id="btn-isolate">
+              <span class="ico">⊘</span>
+              <span class="t">Isolate host</span>
+            </button>
+            <button class="st tray" data-tool="reset" id="btn-reset">
+              <span class="ico">↻</span>
+              <span class="t">Reset creds</span>
+            </button>
+            <button class="st tray" data-tool="block" id="btn-block">
+              <span class="ico">⛔</span>
+              <span class="t">Block IP</span>
+            </button>
+          </div>
+        </main>
+      </div>
+      <div class="hint" id="hint" hidden></div>
+    </section>
+  </div>
+
+  <div id="modal" hidden>
+    <div id="card" role="dialog" aria-modal="true"></div>
+  </div>
+  <div id="toast" role="status"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>
