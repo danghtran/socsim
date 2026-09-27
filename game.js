@@ -111,7 +111,7 @@
     const play = fixed?.play || pick(Object.keys(PLAYBOOKS));
     const tool = fixed?.tool || pick(Object.keys(TOOLS));
     const sev = fixed?.sev ?? Math.floor(Math.random() * (SEV_MAX + 1));
-    const base = S.firstDone ? PATIENCE : 48000;
+    const base = S.firstDone ? PATIENCE : 60000;
     return {
       id: S.uid++,
       host,
@@ -217,7 +217,7 @@
     const toolOk = t.tool && a && t.tool === a.tool;
     const sevOk = a && t.sev === a.sev;
     const ready = playOk && t.queried && toolOk && sevOk;
-    const face = !t.play ? "-_-" : ready ? "^_^" : t.queried ? "o_o" : "-_-";
+    const face = !t.play ? ":." : ready ? ":)" : t.queried ? ":|" : ":.";
     els.work.innerHTML = `
       <div class="case">
         <div class="emo">${face}</div>
@@ -403,41 +403,36 @@
     paint();
   }
 
-  function mismatch(t, a) {
-    if (!t.play || !t.queried || !t.tool) return "incomplete";
-    if (t.play !== a.play) return "playbook";
-    if (t.tool !== a.tool) return "containment";
-    if (t.sev !== a.sev) return "severity";
-    return null;
+  function ticketComplete(t) {
+    return t && t.play && t.queried && t.tool;
+  }
+
+  function alertMatches(t, a) {
+    return a && t.play === a.play && t.tool === a.tool && t.sev === a.sev;
   }
 
   function push() {
+    const t = S.ticket;
     const a = focused();
-    if (!S.ticket) {
+    if (!t) {
       toast("Nothing to push");
       return;
     }
-    if (!a) {
-      toast("No alert selected");
-      return;
-    }
-    const why = mismatch(S.ticket, a);
-    if (why === "incomplete") {
+    if (!ticketComplete(t)) {
       toast(nextHint());
       tone(240, 0.08);
       return;
     }
-    if (why) {
-      fly("mismatch", true);
-      toast(`Mismatch: ${why}`, "bad");
+    const match = (a && alertMatches(t, a) ? a : null) || S.queue.find((q) => alertMatches(t, q));
+    if (match) {
       S.ticket = null;
-      drop(a.id, "wrong");
+      drop(match.id, "ok");
       paint();
       return;
     }
-    S.ticket = null;
-    drop(a.id, "ok");
-    paint();
+    fly("mismatch", true);
+    toast("Doesn't match a waiting alert — dump or rework", "bad");
+    tone(180, 0.12, "square", 0.04);
   }
 
   function tick(ts) {
@@ -451,7 +446,8 @@
       return;
     }
     if (S.now >= S.nextSpawn) {
-      if (S.queue.length < MAX_Q) spawn();
+      const canSpawn = S.queue.length < MAX_Q && (S.firstDone || S.queue.length === 0);
+      if (canSpawn) spawn();
       const gap = S.firstDone
         ? SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN)
         : TUTORIAL_SPAWN;
