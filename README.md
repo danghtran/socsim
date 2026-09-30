@@ -1,27 +1,52 @@
 # SOC SIM
 
-Night-shift desk game. Incoming alerts. Match the playbook, pull logs, contain, set severity, push — before the SLA burns.
+A **Tier-1 SOC analyst workday** simulator. Correlations land in your alert queue. Author playbooks, claim a ticket, apply the matching book, and submit the case.
 
-Inspired by the *pacing* of a sequential cook-and-serve loop (assemble the right ticket under a waiting queue). Cybersecurity themed. One loop, no accounts, no leaderboards.
+One loop, no accounts, no leaderboards.
 
 ## Play
 
-Open `index.html` in a browser, or:
+ES modules need a local server with the correct JS MIME type:
 
 ```bash
-python3 -m http.server 8080
+python serve.py
 ```
 
-Then visit http://localhost:8080
+Then visit http://127.0.0.1:8765/
 
-## How to play
+## How a day works
 
-1. Read the alert: **playbook**, **containment**, **severity**.
-2. **Open ticket**.
-3. Assign **Phish / Malware / Intrusion**.
-4. Click **SIEM · pull logs** and wait a beat.
-5. Apply **Isolate / Reset creds / Block IP**.
-6. Click the **severity** dial until it matches (0–3).
-7. **Push case**. Dump resets a bad bench without failing the alert.
+1. **Clock in.** Morning brief, then you are on the console (wall clock 08:00–16:00). Progress **auto-saves** in the browser — close the tab or use Break → **Save & leave**, then **Continue shift** on the splash. Random **urgent floor popups** freeze the desk until you choose an action.
+2. **Playbooks tab.** Name a playbook and select its attack-chain steps (in order), remediation, and disposition. Saved books stay in your library (localStorage).
+3. **Console tab.** Claim a ticket, read the SIEM stream, open **Hunt pivot** on a row, use the **EDR** panel (timeline · IOC search · Isolate / Kill / Quarantine), apply a playbook, submit. Some correlations are **noise / FP**.
+4. **Submit the case.** Wrong playbooks still close the ticket with no rejection feedback — the miss shows up later when the threat **returns** hotter (noise FPs do not return).
+5. **Comms tab.** Helpdesk, users, IR, and your manager ping the desk. Pick a reply — **bad handling advice lets the attack succeed**, and a hotter alert lands on the console a little later.
+6. **End the day** from break → End day for an end-of-day report.
 
-A shift is about two minutes. Night 1 gives you a long first SLA so you can learn the loop. Three alerts can wait at once. Missed SLA or a wrong push costs trust.
+### Playbook fields
+
+- **Attack chain** — Lure, Harvest, Execute, C2, Brute, Access, Move, Persist, Token, Consent, Encrypt, Exfil (order matters; empty for FP/benign)
+- **Remediation** — Pick categories (Endpoint, Identity, Network, Email, Cloud / SaaS, Observe), then multi-select actions. Use **No containment** / **Request rule tune** for noise.
+- **Disposition** — True positive · contain, Suspicious · monitor, Escalate to IR, Hand off Tier-2, False positive, Benign / expected
+
+Wrong disposition needs a rewrite; two failures escalate. Answers stay sealed. SLA timers are off (`TIMING` in `js/constants.js`); the wall clock is atmospheric.
+
+## Code layout
+
+```
+js/
+  main.js        entry
+  constants.js   steps, remediations, dispositions, defaults
+  catalog.js     SIEM correlation scenarios
+  state.js       runtime + playbook persistence
+  playbooks.js   Playbooks tab authoring UI
+  render.js      console paint / HUD
+  shift.js       spawn, submit, day loop
+  util.js        helpers
+  pivots.js      hunt-pivot facts per scenario
+  edr.js         endpoint timeline, IOC search, isolate/kill/quarantine
+  interrupts.js  urgent floor popups
+  audio.js       tones
+  comms.js       stakeholder inbox / replies
+  comms-data.js  ping templates
+```

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>SOC SIM — Night Shift</title>
-  <meta name="description" content="Match incoming alerts: pick the playbook, pull logs, contain, set severity, push. A one-loop cybersecurity shift.">
+  <title>SOC SIM — Analyst Workday</title>
+  <meta name="description" content="Simulate a Tier-1 SOC analyst workday: triage SIEM correlations, apply playbooks, remediate, and close cases.">
   <meta name="theme-color" content="#071018">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23071a22'/%3E%3Cpath d='M32 8l22 8v16c0 14-9 24-22 28C19 56 10 46 10 32V16z' fill='%233ee0c5'/%3E%3Ccircle cx='32' cy='30' r='4' fill='%23071018'/%3E%3Cpath d='M24 40c4 5 12 5 16 0' stroke='%23071018' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,105 +45,108 @@
         </svg>
       </div>
       <div class="splash-copy">
-        <p class="kicker">Night-shift desk · one loop</p>
+        <p class="kicker">Tier-1 SOC · day shift</p>
         <h1>SOC SIM</h1>
-        <p class="lede">Alerts pile up. Match playbook, logs, containment, and severity — then push before the SLA burns.</p>
-        <div class="scale" aria-label="Severity scale 0 to 3">
-          <span class="s0">0</span><span class="s1">1</span><span class="s2">2</span><span class="s3">3</span>
+        <p class="lede">You are the analyst on the console. Author playbooks, triage the alert queue, apply the right book, and close the case.</p>
+        <div class="scale" aria-label="Workday loop">
+          <span class="s0">triage</span><span class="s1">playbook</span><span class="s2">close</span>
         </div>
-        <button class="big" id="btn-start">Start shift</button>
-        <button class="ghost" id="btn-how">How to play</button>
+        <p class="session-meta" id="session-meta" hidden></p>
+        <button class="big" id="btn-continue" hidden>Continue shift</button>
+        <button class="big" id="btn-start">Clock in</button>
+        <button class="ghost" id="btn-new" hidden>New day</button>
+        <button class="ghost" id="btn-how">How a day works</button>
       </div>
     </section>
 
     <section id="shift" class="screen" hidden>
       <header id="top">
         <div class="l">
-          <button class="ibtn" id="btn-pause" title="Pause" aria-label="Pause">II</button>
+          <button class="ibtn" id="btn-pause" title="Break" aria-label="Take a break">II</button>
           <div>
-            <div class="day">Night 1</div>
-            <div class="sub" id="clock">00:00</div>
+            <div class="day" id="day-label">Day 1</div>
+            <div class="sub" id="clock">08:00</div>
           </div>
         </div>
-        <div class="money" id="rep">0<small>rep</small></div>
+        <div class="money" id="rep">0<small>closed</small></div>
         <div class="r">
           <div class="stars" id="stars">★★★★★</div>
-          <div class="sub" id="star-n">5.0 trust</div>
+          <div class="sub" id="star-n">5.0 mgr</div>
         </div>
         <button class="ibtn" id="btn-mute" title="Mute" aria-label="Mute sound">♪</button>
       </header>
+
+      <nav class="tabs" role="tablist" aria-label="Desk views">
+        <button type="button" class="tab on" role="tab" id="tab-console" aria-selected="true">Console</button>
+        <button type="button" class="tab" role="tab" id="tab-playbooks" aria-selected="false">Playbooks</button>
+        <button type="button" class="tab" role="tab" id="tab-comms" aria-selected="false">
+          Comms <span class="tab-badge" id="comms-badge" hidden>0</span>
+        </button>
+      </nav>
+
       <div class="hint" id="hint" hidden></div>
 
-      <div id="stage">
-        <aside class="floor">
-          <div class="sign">
-            <div class="lanterns" aria-hidden="true"><i></i><i></i><i></i></div>
-            <h2>Packet Desk</h2>
-            <p>Inbound queue · live SLA</p>
-            <span class="ren" id="shift-tag">SHIFT OPEN</span>
-          </div>
-          <div class="queue" id="queue"></div>
-          <div class="bubble" id="bubble">
-            <div class="idle">Waiting on the wire…</div>
-          </div>
-        </aside>
-
-        <main class="ops">
-          <div class="lbl">Playbooks</div>
-          <div class="row r1" id="playbooks">
-            <button class="st" data-act="open" id="btn-open">
-              <span class="ico" aria-hidden="true">▣</span>
-              <span class="t">Open ticket</span>
-            </button>
-            <button class="st pb" data-play="phish" id="btn-phish">
-              <span class="ico">@</span>
-              <span class="t">Phish</span>
-            </button>
-            <button class="st pb" data-play="malware" id="btn-malware">
-              <span class="ico">⌘</span>
-              <span class="t">Malware</span>
-            </button>
-            <button class="st pb" data-play="intrusion" id="btn-intrusion">
-              <span class="ico">#</span>
-              <span class="t">Intrusion</span>
-            </button>
-          </div>
-
-          <div class="row r2">
-            <button class="st console" id="btn-query" data-act="query">
-              <span class="gauge"><i id="needle"></i></span>
-              <span class="t">SIEM · pull logs</span>
-            </button>
-            <div class="work" id="work">
-              <p class="ph">No case open.<br>Open a ticket.</p>
+      <div id="panel-console" class="panel">
+        <div id="stage">
+          <aside class="floor">
+            <div class="sign">
+              <div class="lanterns" aria-hidden="true"><i></i><i></i><i></i></div>
+              <h2>Alert queue</h2>
+              <p>Assigned console · Tier-1</p>
+              <span class="ren" id="shift-tag">ON DUTY</span>
             </div>
-            <button class="st chili" id="btn-sev" data-act="sev">
-              <span class="lv" id="sev-n">0</span>
-              <span class="t">Severity</span>
-            </button>
-          </div>
+            <div class="queue" id="queue"></div>
+            <div class="brief" id="brief">
+              <div class="idle">Queue clear. Waiting for the next correlation…</div>
+            </div>
+          </aside>
 
-          <div class="row r3">
-            <button class="serve" id="btn-push">Push case</button>
-            <button class="trash" id="btn-dump">Dump</button>
-          </div>
+          <main class="ops">
+            <div class="row r2">
+              <div class="work" id="work">
+                <p class="ph">No ticket claimed.<br>Claim the focused alert to start your investigation.</p>
+              </div>
+            </div>
 
-          <div class="lbl">Containment</div>
-          <div class="row trays" id="tools">
-            <button class="st tray" data-tool="isolate" id="btn-isolate">
-              <span class="ico">⊘</span>
-              <span class="t">Isolate host</span>
-            </button>
-            <button class="st tray" data-tool="reset" id="btn-reset">
-              <span class="ico">↻</span>
-              <span class="t">Reset creds</span>
-            </button>
-            <button class="st tray" data-tool="block" id="btn-block">
-              <span class="ico">⛔</span>
-              <span class="t">Block IP</span>
-            </button>
-          </div>
-        </main>
+            <section class="edr-panel" id="edr-panel" aria-label="Endpoint EDR">
+              <div class="edr-empty">Claim a ticket to open the endpoint console.</div>
+            </section>
+
+            <div class="row r3">
+              <button class="st" data-act="open" id="btn-open">
+                <span class="ico" aria-hidden="true">▣</span>
+                <span class="t">Claim ticket</span>
+              </button>
+              <button class="serve" id="btn-push">Submit case</button>
+              <button class="trash" id="btn-dump">Discard</button>
+            </div>
+
+            <div class="lbl">Apply playbook <span class="hint-inline">from your library</span></div>
+            <div class="pb-picker" id="pb-picker"></div>
+          </main>
+        </div>
+      </div>
+
+      <div id="panel-playbooks" class="panel pb-panel" hidden>
+        <div class="pb-layout">
+          <aside class="pb-lib">
+            <div class="lbl">Library</div>
+            <div id="pb-list"></div>
+          </aside>
+          <section class="pb-compose" id="pb-editor"></section>
+        </div>
+      </div>
+
+      <div id="panel-comms" class="panel pb-panel" hidden>
+        <div class="pb-layout comms-layout">
+          <aside class="pb-lib chat-sidebar">
+            <div class="lbl">Chats</div>
+            <div id="comms-list"></div>
+          </aside>
+          <section class="chat-pane empty" id="comms-detail">
+            <div class="chat-empty"><p>Pick a conversation<br><span>or wait for the next ping</span></p></div>
+          </section>
+        </div>
       </div>
     </section>
   </div>
@@ -153,6 +156,6 @@
   </div>
   <div id="toast" role="status"></div>
 
-  <script src="game.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
