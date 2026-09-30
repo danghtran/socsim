@@ -6,7 +6,14 @@ One loop, no accounts, no leaderboards.
 
 ## Play
 
-**Live:** [https://danghtran.github.io/socsim/](https://danghtran.github.io/socsim/)
+**Live (GitHub Pages):** [https://danghtran.github.io/socsim/](https://danghtran.github.io/socsim/)
+
+### Enable Pages (one-time)
+
+1. Open [Settings → Pages](https://github.com/danghtran/socsim/settings/pages)
+2. Under **Build and deployment** → **Source**, choose **Deploy from a branch**
+3. Branch: **main** · folder: **/ (root)** → **Save**
+4. Wait ~1 minute, then open the live link above
 
 Locally, ES modules need a server with the correct JS MIME type:
 
