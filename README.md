@@ -6,7 +6,9 @@ One loop, no accounts, no leaderboards.
 
 ## Play
 
-ES modules need a local server with the correct JS MIME type:
+**Live:** [https://danghtran.github.io/socsim/](https://danghtran.github.io/socsim/)
+
+Locally, ES modules need a server with the correct JS MIME type:
 
 ```bash
 python serve.py
