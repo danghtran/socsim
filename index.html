@@ -102,27 +102,38 @@
           </aside>
 
           <main class="ops">
-            <div class="row r2">
+            <div class="ops-ticket">
               <div class="work" id="work">
                 <p class="ph">No ticket claimed.<br>Claim the focused alert to start your investigation.</p>
               </div>
+              <div class="case-actions">
+                <button class="st" data-act="open" id="btn-open">
+                  <span class="ico" aria-hidden="true">▣</span>
+                  <span class="t">Claim</span>
+                </button>
+                <button class="trash" id="btn-dump">Discard</button>
+                <button class="serve" id="btn-push">Submit</button>
+              </div>
             </div>
 
-            <section class="edr-panel" id="edr-panel" aria-label="Endpoint EDR">
-              <div class="edr-empty">Claim a ticket to open the endpoint console.</div>
-            </section>
-
-            <div class="row r3">
-              <button class="st" data-act="open" id="btn-open">
-                <span class="ico" aria-hidden="true">▣</span>
-                <span class="t">Claim ticket</span>
-              </button>
-              <button class="serve" id="btn-push">Submit case</button>
-              <button class="trash" id="btn-dump">Discard</button>
+            <div class="ops-close">
+              <div class="lbl-row">
+                <div class="ops-tools" role="tablist" aria-label="Case tools">
+                  <button type="button" class="ops-tool on" id="ops-tool-pb" data-ops-tool="playbooks" aria-selected="true">Playbooks</button>
+                  <button type="button" class="ops-tool" id="ops-tool-edr" data-ops-tool="edr" aria-selected="false">EDR</button>
+                </div>
+              </div>
+              <div class="ops-tool-panes">
+                <div class="ops-pane" id="ops-pane-pb">
+                  <div class="pb-picker" id="pb-picker"></div>
+                </div>
+                <div class="ops-pane" id="ops-pane-edr" hidden>
+                  <section class="edr-panel" id="edr-panel" aria-label="Endpoint EDR">
+                    <div class="edr-empty">Claim a ticket to open the endpoint console.</div>
+                  </section>
+                </div>
+              </div>
             </div>
-
-            <div class="lbl">Apply playbook <span class="hint-inline">from your library</span></div>
-            <div class="pb-picker" id="pb-picker"></div>
           </main>
         </div>
       </div>

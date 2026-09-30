@@ -34,6 +34,9 @@ export const S = {
   eodShown: false,
   /** @type {'console'|'playbooks'|'comms'} */
   tab: "console",
+  /** Console lower tool: playbook picker or EDR */
+  /** @type {'playbooks'|'edr'} */
+  opsTool: "playbooks",
   playbooks: [],
   /** Draft while editing in Playbooks tab */
   draft: emptyDraft(),
@@ -185,6 +188,7 @@ export function buildSessionSnapshot() {
     dayN: S.dayN,
     eodShown: !!S.eodShown,
     tab: S.tab || "console",
+    opsTool: S.opsTool === "edr" ? "edr" : "playbooks",
     draft: S.draft
       ? {
           ...S.draft,

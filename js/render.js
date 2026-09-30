@@ -32,6 +32,10 @@ export const els = {
   panelConsole: null,
   panelPlaybooks: null,
   panelComms: null,
+  opsToolPb: null,
+  opsToolEdr: null,
+  opsPanePb: null,
+  opsPaneEdr: null,
 };
 
 export function bindEls() {
@@ -59,6 +63,10 @@ export function bindEls() {
   els.panelConsole = $("panel-console");
   els.panelPlaybooks = $("panel-playbooks");
   els.panelComms = $("panel-comms");
+  els.opsToolPb = $("ops-tool-pb");
+  els.opsToolEdr = $("ops-tool-edr");
+  els.opsPanePb = $("ops-pane-pb");
+  els.opsPaneEdr = $("ops-pane-edr");
 }
 
 export function focused() {
@@ -189,12 +197,26 @@ function renderBrief() {
     ${renderStream(a)}`;
 }
 
-function renderEdr() {
+export function renderEdr() {
   if (!els.edrPanel) return;
   const t = S.ticket;
   const a = t ? S.queue.find((q) => q.id === t.alertId) : null;
   els.edrPanel.innerHTML = edrPanelHtml(a || null);
   els.edrPanel.classList.toggle("idle", !a);
+}
+
+/** Switch console lower pane between playbook picker and EDR. */
+export function setOpsTool(tool) {
+  const next = tool === "edr" ? "edr" : "playbooks";
+  S.opsTool = next;
+  const isPb = next === "playbooks";
+  els.opsToolPb?.classList.toggle("on", isPb);
+  els.opsToolEdr?.classList.toggle("on", !isPb);
+  els.opsToolPb?.setAttribute("aria-selected", isPb ? "true" : "false");
+  els.opsToolEdr?.setAttribute("aria-selected", isPb ? "false" : "true");
+  if (els.opsPanePb) els.opsPanePb.hidden = !isPb;
+  if (els.opsPaneEdr) els.opsPaneEdr.hidden = isPb;
+  if (!isPb) renderEdr();
 }
 
 function renderCase() {
@@ -302,6 +324,7 @@ export function updatePatience() {
 }
 
 export function setTab(tab) {
+  if (tab === "edr") tab = "console";
   S.tab = tab;
   const is = (t) => tab === t;
   els.tabConsole?.classList.toggle("on", is("console"));
@@ -321,6 +344,7 @@ export function paint(advanceWork, onApplyPlaybook) {
     renderQueue();
     renderBrief();
     renderCase();
+    setOpsTool(S.opsTool || "playbooks");
     renderPlaybookPicker(els.pbPicker, {
       selectedId: S.ticket?.playbookId || null,
       onPick: (id) => {

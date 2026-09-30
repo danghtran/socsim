@@ -9,7 +9,7 @@ import { pivotsFor } from "./pivots.js";
 import { ensureAudio, tone } from "./audio.js";
 import {
   applyPlaybookToTicket, els, fly, focused, hideModal, hud, nextStep,
-  paint, setTab, toast, updatePatience,
+  paint, setTab, setOpsTool, toast, updatePatience, renderEdr,
 } from "./render.js";
 import { renderPlaybooks, initPlaybooks } from "./playbooks.js";
 import { findInterrupt, firstInterruptAt, interruptGapMin, INTERRUPTS } from "./interrupts.js";
@@ -721,7 +721,8 @@ function applySession(data) {
   S.nextInterruptAt = data.nextInterruptAt ?? firstInterruptAt(S.workMin);
   S.interrupt = data.interrupt?.id ? { id: data.interrupt.id, shownAt: data.interrupt.shownAt || S.workMin } : null;
   S.pauseKind = null;
-  setTab(data.tab || "console");
+  setTab(data.tab === "edr" ? "console" : (data.tab || "console"));
+  setOpsTool(data.opsTool === "edr" ? "edr" : "playbooks");
 }
 
 export function refreshSplash() {
@@ -794,7 +795,7 @@ function showMorningBrief() {
     <p class="brief-lead">Day ${S.dayN} · you are Tier-1 on the console.</p>
     <div class="how">
       <div><i>1</i><div><b>Alert queue</b><span>Correlations land from SIEM, EDR, mail, IdP. Up to three wait at once.</span></div></div>
-      <div><i>2</i><div><b>Claim & investigate</b><span>Read the stream, Hunt pivot, and EDR. Urgent floor popups can freeze the desk until you answer.</span></div></div>
+      <div><i>2</i><div><b>Claim & investigate</b><span>Read the stream and Hunt pivots. Switch Playbooks / EDR under the ticket. Urgent floor popups freeze the desk until you answer.</span></div></div>
       <div><i>3</i><div><b>Answer Comms</b><span>Helpdesk, users, IR, and your manager will ping. Bad replies can quietly make threats worse.</span></div></div>
     </div>
     <p>Wall clock runs 08:00–16:00. Take a break anytime. End the day when you wrap.</p>
@@ -839,7 +840,9 @@ export function startShift() {
   S.eodShown = false;
   S.draft = emptyDraft();
   S.editingId = null;
+  S.opsTool = "playbooks";
   setTab("console");
+  setOpsTool("playbooks");
   els.splash.hidden = true;
   els.shift.hidden = false;
   S.t0 = performance.now();
@@ -980,6 +983,14 @@ export function wireShift() {
     hud(advanceWork);
     queueSave();
   };
+
+  document.querySelector(".ops-tools")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-ops-tool]");
+    if (!btn) return;
+    setOpsTool(btn.dataset.opsTool);
+    if (S.opsTool === "playbooks" && S.tab === "console") doPaint();
+    else queueSave();
+  });
 
   els.queue.addEventListener("click", (e) => {
     const b = e.target.closest(".evt");

@@ -44,13 +44,14 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
 #app {
-  max-width: 460px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg2);
-  box-shadow: 0 0 80px rgba(0, 0, 0, .55);
+  box-shadow: none;
   position: relative;
   overflow: hidden;
 }
@@ -237,35 +238,61 @@ h1 {
 .pb-picker {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
   overflow: auto;
-  max-height: 220px;
-  padding-right: 2px;
+  flex: 1 1 50%;
+  min-height: 200px;
+  max-height: none;
+  padding: 4px 6px 8px;
+  box-sizing: border-box;
+}
+/* When no ticket is claimed, grow the playbook picker. */
+.ops:has(.work .ph) .ops-ticket {
+  min-height: 132px;
+  max-height: 132px;
+}
+.ops:has(.work .ph) .ops-close,
+.ops:has(.work .ph) .pb-picker {
+  flex: 1 1 auto;
+  min-height: 240px;
 }
 .pb-apply {
   text-align: left;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 14px 16px 18px;
+  border-radius: 12px;
   background: #0c1c26;
   border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  min-height: 72px;
+  cursor: pointer;
 }
 .pb-apply .nm {
   font-family: var(--fd);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--ink);
+  line-height: 1.25;
 }
 .pb-apply .meta {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--muted);
-  line-height: 1.35;
+  line-height: 1.45;
+  margin: 0;
+  padding-bottom: 2px;
 }
 .pb-apply.on {
   border-color: var(--cyan);
-  background: rgba(62, 224, 197, .1);
+  background: rgba(62, 224, 197, .12);
+}
+.pb-apply:hover {
+  border-color: #3a5a6c;
+  background: #102430;
+}
+.pb-apply.on:hover {
+  border-color: var(--cyan);
+  background: rgba(62, 224, 197, .16);
 }
 .pb-apply:active { transform: translateY(1px); }
 .pb-hint {
@@ -288,9 +315,10 @@ h1 {
 #pb-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 200px;
+  gap: 12px;
+  max-height: min(42vh, 320px);
   overflow: auto;
+  padding: 2px 4px 8px;
 }
 .pb-empty {
   margin: 0;
@@ -302,7 +330,7 @@ h1 {
   border: 1px dashed var(--line);
 }
 .pb-card {
-  padding: 10px 12px;
+  padding: 12px 14px 16px;
   border-radius: 12px;
   background: #0c1c26;
   border: 1px solid var(--line);
@@ -337,7 +365,7 @@ h1 {
   line-height: 1.35;
 }
 .pb-meta {
-  margin: 0;
+  margin: 0 0 2px;
   font-size: 11px;
   color: var(--muted);
 }
@@ -970,10 +998,154 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   flex: 0 1 auto;
-  min-height: 88px;
-  max-height: 140px;
+  min-height: 72px;
+  max-height: 120px;
 }
-.r3 { display: grid; grid-template-columns: 88px 1fr 72px; flex: none; }
+.ops-ticket {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  flex: 0 1 auto;
+  min-height: 180px;
+  max-height: min(360px, 52%);
+}
+.ops-ticket .work {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+.ops-ticket .work:has(.ph) {
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+.case-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 96px;
+}
+.case-actions .st {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 6px 4px;
+}
+.case-actions .st .t { font-size: 10px; }
+.case-actions .st .ico { font-size: 14px; }
+.case-actions .trash,
+.case-actions .serve {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.case-actions .serve {
+  background: var(--ok);
+  color: #062016;
+  font-family: var(--fd);
+  font-weight: 700;
+  box-shadow: 0 2px 0 var(--ok-d);
+}
+.case-actions .serve:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--ok-d);
+}
+.case-actions .serve.need {
+  box-shadow: 0 2px 0 var(--ok-d), 0 0 0 2px rgba(245, 197, 66, .55);
+}
+.ops-close {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.lbl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: none;
+}
+.lbl-row .lbl { margin: 0; }
+.ops-tools {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: #0a161c;
+  box-shadow: inset 0 0 0 1px #243848;
+}
+.ops-tool {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--fd);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.ops-tool:hover { color: #d7e6ef; }
+.ops-tool.on {
+  background: #1a2c38;
+  color: var(--cyan);
+  box-shadow: inset 0 0 0 1px #2a5348;
+}
+.ops-tool-panes {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ops-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ops-pane .edr-panel,
+.ops-pane .pb-picker {
+  flex: 1 1 auto;
+  min-height: 140px;
+}
+.ops-close .pb-picker {
+  flex: 1 1 auto;
+  min-height: 120px;
+}
+.r3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+  flex: none;
+}
+.r3 .st { flex: 0 0 auto; min-width: 88px; width: auto; padding: 8px 10px; }
+.r3 .serve {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 128px;
+  max-width: 168px;
+  padding: 0 16px;
+  font-size: 13px;
+  min-height: 40px;
+}
+.r3 .trash {
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 40px;
+  padding: 0 12px;
+}
 .trays { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); flex: none; }
 .elems { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); flex: none; }
 
@@ -1038,11 +1210,11 @@ h1 {
 
 .edr-panel {
   flex: 1 1 auto;
-  min-height: 120px;
-  max-height: 220px;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   border-radius: 12px;
-  padding: 8px 9px 9px;
+  padding: 10px 12px 12px;
   background: #0a141c;
   box-shadow: inset 0 0 0 1px #243848;
 }
@@ -1521,8 +1693,8 @@ h1 {
 
 @media (min-width: 760px) {
   #app {
-    max-width: 1080px;
-    flex-direction: column;
+    max-width: none;
+    width: 100%;
   }
   #splash {
     flex-direction: row;
@@ -1542,28 +1714,76 @@ h1 {
     align-items: stretch;
   }
   .floor {
-    flex: 0 0 38%;
-    max-width: 420px;
+    flex: 0 0 clamp(300px, 30%, 400px);
+    max-width: none;
     min-height: 0;
   }
-  .ops { flex: 1; min-height: 0; }
-  .r2 { min-height: 148px; max-height: 200px; }
+  .ops {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    padding: 10px 14px 12px;
+  }
+  .ops-ticket {
+    min-height: 220px;
+    max-height: min(400px, 52%);
+  }
+  .ops-close {
+    flex: 1 1 auto;
+    min-height: 220px;
+  }
   .brief { flex: 1; max-height: none; min-height: 0; }
   .pb-layout {
     flex-direction: row;
     align-items: stretch;
     height: 100%;
+    padding: 12px 16px 18px;
+    gap: 14px;
   }
   .pb-lib {
-    flex: 0 0 36%;
-    max-width: 380px;
+    flex: 0 0 clamp(280px, 34%, 440px);
+    max-width: none;
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
   #pb-list { max-height: none; flex: 1; }
   .pb-compose { flex: 1; overflow: auto; }
-  .pb-picker { max-height: none; flex: 1; }
+  .ops-close .pb-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 6px 8px 10px;
+    min-height: 140px;
+    max-height: none;
+    align-content: start;
+  }
+  .ops:has(.work .ph) .ops-close {
+    min-height: 280px;
+  }
+  .pb-apply {
+    padding: 16px 18px 20px;
+    min-height: 80px;
+  }
+  .pb-apply .nm { font-size: 16px; }
+  .pb-apply .meta { font-size: 13px; }
+  .pb-card {
+    padding: 14px 16px 18px;
+  }
+  .pb-card h3 { font-size: 16px; }
+}
+
+@media (min-width: 1200px) {
+  .floor {
+    flex: 0 0 clamp(340px, 28%, 440px);
+  }
+  .ops-close .pb-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ops { padding: 12px 18px 14px; }
+  .pb-lib {
+    flex: 0 0 clamp(320px, 32%, 480px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

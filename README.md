@@ -27,7 +27,7 @@ Then visit http://127.0.0.1:8765/
 
 1. **Clock in.** Morning brief, then you are on the console (wall clock 08:00–16:00). Progress **auto-saves** in the browser — close the tab or use Break → **Save & leave**, then **Continue shift** on the splash. Random **urgent floor popups** freeze the desk until you choose an action.
 2. **Playbooks tab.** Name a playbook and select its attack-chain steps (in order), remediation, and disposition. Saved books stay in your library (localStorage).
-3. **Console tab.** Claim a ticket, read the SIEM stream, open **Hunt pivot** on a row, use the **EDR** panel (timeline · IOC search · Isolate / Kill / Quarantine), apply a playbook, submit. Some correlations are **noise / FP**.
+3. **Console tab.** Claim a ticket, read the SIEM stream, open **Hunt pivot** on a row, then switch **Playbooks / EDR** under the ticket (timeline · IOC · Isolate / Kill / Quarantine), apply a playbook, submit. Some correlations are **noise / FP**.
 4. **Submit the case.** Wrong playbooks still close the ticket with no rejection feedback — the miss shows up later when the threat **returns** hotter (noise FPs do not return).
 5. **Comms tab.** Helpdesk, users, IR, and your manager ping the desk. Pick a reply — **bad handling advice lets the attack succeed**, and a hotter alert lands on the console a little later.
 6. **End the day** from break → End day for an end-of-day report.
