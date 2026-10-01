@@ -2,6 +2,7 @@ import {
   DAY_END_MIN, DISPS, MAX_Q, TIMING, SHIFT_MS, WORK_IDLE_SCALE,
 } from "./constants.js";
 import { edrPanelHtml } from "./edr.js";
+import { osintPanelHtml, strongestVerdict } from "./artifacts.js";
 import { renderPlaybookPicker } from "./playbooks.js";
 import { S, getPlaybook } from "./state.js";
 import { $, chainLabel, fmt, fmtWork, remLabel, starGlyph } from "./util.js";
@@ -14,6 +15,7 @@ export const els = {
   brief: null,
   work: null,
   edrPanel: null,
+  osintPanel: null,
   hint: null,
   toast: null,
   modal: null,
@@ -29,13 +31,17 @@ export const els = {
   tabConsole: null,
   tabPlaybooks: null,
   tabComms: null,
+  tabHandoffs: null,
   panelConsole: null,
   panelPlaybooks: null,
   panelComms: null,
+  panelHandoffs: null,
   opsToolPb: null,
   opsToolEdr: null,
+  opsToolOsint: null,
   opsPanePb: null,
   opsPaneEdr: null,
+  opsPaneOsint: null,
 };
 
 export function bindEls() {
@@ -45,6 +51,7 @@ export function bindEls() {
   els.brief = $("brief");
   els.work = $("work");
   els.edrPanel = $("edr-panel");
+  els.osintPanel = $("osint-panel");
   els.hint = $("hint");
   els.toast = $("toast");
   els.modal = $("modal");
@@ -60,13 +67,17 @@ export function bindEls() {
   els.tabConsole = $("tab-console");
   els.tabPlaybooks = $("tab-playbooks");
   els.tabComms = $("tab-comms");
+  els.tabHandoffs = $("tab-handoffs");
   els.panelConsole = $("panel-console");
   els.panelPlaybooks = $("panel-playbooks");
   els.panelComms = $("panel-comms");
+  els.panelHandoffs = $("panel-handoffs");
   els.opsToolPb = $("ops-tool-pb");
   els.opsToolEdr = $("ops-tool-edr");
+  els.opsToolOsint = $("ops-tool-osint");
   els.opsPanePb = $("ops-pane-pb");
   els.opsPaneEdr = $("ops-pane-edr");
+  els.opsPaneOsint = $("ops-pane-osint");
 }
 
 export function focused() {
@@ -205,18 +216,32 @@ export function renderEdr() {
   els.edrPanel.classList.toggle("idle", !a);
 }
 
-/** Switch console lower pane between playbook picker and EDR. */
+export function renderOsint() {
+  if (!els.osintPanel) return;
+  const t = S.ticket;
+  const a = t ? S.queue.find((q) => q.id === t.alertId) : null;
+  els.osintPanel.innerHTML = osintPanelHtml(a || null);
+  els.osintPanel.classList.toggle("idle", !a);
+}
+
+/** Switch console lower pane between playbooks, EDR, and OSINT. */
 export function setOpsTool(tool) {
-  const next = tool === "edr" ? "edr" : "playbooks";
+  const next = tool === "edr" || tool === "osint" ? tool : "playbooks";
   S.opsTool = next;
   const isPb = next === "playbooks";
+  const isEdr = next === "edr";
+  const isOsint = next === "osint";
   els.opsToolPb?.classList.toggle("on", isPb);
-  els.opsToolEdr?.classList.toggle("on", !isPb);
+  els.opsToolEdr?.classList.toggle("on", isEdr);
+  els.opsToolOsint?.classList.toggle("on", isOsint);
   els.opsToolPb?.setAttribute("aria-selected", isPb ? "true" : "false");
-  els.opsToolEdr?.setAttribute("aria-selected", isPb ? "false" : "true");
+  els.opsToolEdr?.setAttribute("aria-selected", isEdr ? "true" : "false");
+  els.opsToolOsint?.setAttribute("aria-selected", isOsint ? "true" : "false");
   if (els.opsPanePb) els.opsPanePb.hidden = !isPb;
-  if (els.opsPaneEdr) els.opsPaneEdr.hidden = isPb;
-  if (!isPb) renderEdr();
+  if (els.opsPaneEdr) els.opsPaneEdr.hidden = !isEdr;
+  if (els.opsPaneOsint) els.opsPaneOsint.hidden = !isOsint;
+  if (isEdr) renderEdr();
+  if (isOsint) renderOsint();
 }
 
 function renderCase() {
@@ -224,6 +249,7 @@ function renderCase() {
   if (!t) {
     els.work.innerHTML = `<p class="ph">No ticket claimed.<br>Claim the focused alert to start your investigation.</p>`;
     renderEdr();
+    renderOsint();
     return;
   }
   const a = S.queue.find((q) => q.id === t.alertId);
@@ -235,6 +261,8 @@ function renderCase() {
   if (a?.edr?.quarantined) edrBits.push("quarantined");
   const iocN = a?.edr?.iocSearched ? Object.keys(a.edr.iocSearched).length : 0;
   if (iocN) edrBits.push(`ioc×${iocN}`);
+  const osintHit = a ? strongestVerdict(a) : null;
+  const osintN = a?.osint?.looked ? Object.keys(a.osint.looked).length : 0;
   els.work.innerHTML = `
     <div class="case">
       <div class="id">INC-${String(100 + t.alertId).slice(-3)}${a ? ` · ${a.title}` : " · stale"}</div>
@@ -244,10 +272,16 @@ function renderCase() {
         <div class="wide"><em>remediate</em><b>${remLabel(t.rems)}</b></div>
         <div><em>disposition</em><b>${t.disp ? DISPS[t.disp].label : "—"}</b></div>
         ${edrBits.length ? `<div class="wide"><em>EDR</em><b>${edrBits.join(" · ")}</b></div>` : ""}
+        ${osintHit
+          ? `<div class="wide"><em>OSINT</em><b class="${osintHit.verdict === "malicious" || osintHit.verdict === "suspicious" ? "warn" : osintHit.verdict === "benign" ? "ok" : ""}">${osintHit.verdict}${osintN > 1 ? ` · ${osintN} lookups` : ""}</b></div>`
+          : osintN
+            ? `<div class="wide"><em>OSINT</em><b>${osintN} lookup${osintN === 1 ? "" : "s"}</b></div>`
+            : ""}
       </div>
       <p class="meta">${a ? (ready ? "Ready to submit. Review is sealed until then." : nextStep().msg) : "Alert aged out. Discard this draft."}</p>
     </div>`;
   renderEdr();
+  renderOsint();
 }
 
 function highlight() {
@@ -330,12 +364,15 @@ export function setTab(tab) {
   els.tabConsole?.classList.toggle("on", is("console"));
   els.tabPlaybooks?.classList.toggle("on", is("playbooks"));
   els.tabComms?.classList.toggle("on", is("comms"));
+  els.tabHandoffs?.classList.toggle("on", is("handoffs"));
   els.tabConsole?.setAttribute("aria-selected", is("console") ? "true" : "false");
   els.tabPlaybooks?.setAttribute("aria-selected", is("playbooks") ? "true" : "false");
   els.tabComms?.setAttribute("aria-selected", is("comms") ? "true" : "false");
+  els.tabHandoffs?.setAttribute("aria-selected", is("handoffs") ? "true" : "false");
   if (els.panelConsole) els.panelConsole.hidden = !is("console");
   if (els.panelPlaybooks) els.panelPlaybooks.hidden = !is("playbooks");
   if (els.panelComms) els.panelComms.hidden = !is("comms");
+  if (els.panelHandoffs) els.panelHandoffs.hidden = !is("handoffs");
   if (els.hint) els.hint.hidden = !is("console") || !(S.tutorial && !S.firstDone);
 }
 

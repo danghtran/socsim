@@ -32,10 +32,10 @@ export const S = {
   lastWorkTick: 0,
   dayN: 1,
   eodShown: false,
-  /** @type {'console'|'playbooks'|'comms'} */
+  /** @type {'console'|'playbooks'|'comms'|'handoffs'} */
   tab: "console",
-  /** Console lower tool: playbook picker or EDR */
-  /** @type {'playbooks'|'edr'} */
+  /** Console lower tool: playbook picker, EDR, or OSINT */
+  /** @type {'playbooks'|'edr'|'osint'} */
   opsTool: "playbooks",
   playbooks: [],
   /** Draft while editing in Playbooks tab */
@@ -49,6 +49,14 @@ export const S = {
   commsOk: 0,
   commsBad: 0,
   nextCommAt: DAY_START_MIN + 18,
+  /** Tier-2 / IR handoff queue */
+  handoffs: [],
+  handoffSeen: null,
+  handoffFocus: null,
+  handoffUid: 1,
+  handoffOk: 0,
+  handoffBad: 0,
+  nextHandoffAt: DAY_START_MIN + 26,
   /** Floor interrupt popup */
   interrupt: null,
   interruptSeen: null,
@@ -137,6 +145,7 @@ function serializeAlert(a) {
     noise: !!a.noise,
     pivots: a.pivots || [],
     edr: a.edr || null,
+    osint: a.osint || null,
   };
 }
 
@@ -154,6 +163,29 @@ function serializeComm(c) {
     staled: !!c.staled,
     effect: c.effect,
     messages: c.messages || [],
+  };
+}
+
+function serializeHandoff(h) {
+  return {
+    id: h.id,
+    tplId: h.tplId,
+    fromId: h.from?.id || h.fromId || "tier2",
+    tag: h.tag,
+    title: h.title,
+    body: h.body,
+    checklist: h.checklist || [],
+    correctAction: h.correctAction,
+    accept: h.accept || {},
+    escalate: h.escalate || {},
+    wrong: h.wrong || {},
+    checks: { ...(h.checks || {}) },
+    bornMin: h.bornMin,
+    staleMin: h.staleMin,
+    resolved: !!h.resolved,
+    staled: !!h.staled,
+    effect: h.effect,
+    chosen: h.chosen,
   };
 }
 
@@ -188,7 +220,7 @@ export function buildSessionSnapshot() {
     dayN: S.dayN,
     eodShown: !!S.eodShown,
     tab: S.tab || "console",
-    opsTool: S.opsTool === "edr" ? "edr" : "playbooks",
+    opsTool: S.opsTool === "edr" || S.opsTool === "osint" ? S.opsTool : "playbooks",
     draft: S.draft
       ? {
           ...S.draft,
@@ -209,6 +241,13 @@ export function buildSessionSnapshot() {
     commsOk: S.commsOk,
     commsBad: S.commsBad,
     nextCommAt: S.nextCommAt,
+    handoffs: (S.handoffs || []).map(serializeHandoff),
+    handoffSeen: [...(S.handoffSeen instanceof Set ? S.handoffSeen : new Set(S.handoffSeen || []))],
+    handoffFocus: S.handoffFocus,
+    handoffUid: S.handoffUid,
+    handoffOk: S.handoffOk,
+    handoffBad: S.handoffBad,
+    nextHandoffAt: S.nextHandoffAt,
   };
 }
 

@@ -82,6 +82,9 @@
         <button type="button" class="tab" role="tab" id="tab-comms" aria-selected="false">
           Comms <span class="tab-badge" id="comms-badge" hidden>0</span>
         </button>
+        <button type="button" class="tab" role="tab" id="tab-handoffs" aria-selected="false">
+          Handoff <span class="tab-badge" id="handoff-badge" hidden>0</span>
+        </button>
       </nav>
 
       <div class="hint" id="hint" hidden></div>
@@ -121,6 +124,7 @@
                 <div class="ops-tools" role="tablist" aria-label="Case tools">
                   <button type="button" class="ops-tool on" id="ops-tool-pb" data-ops-tool="playbooks" aria-selected="true">Playbooks</button>
                   <button type="button" class="ops-tool" id="ops-tool-edr" data-ops-tool="edr" aria-selected="false">EDR</button>
+                  <button type="button" class="ops-tool" id="ops-tool-osint" data-ops-tool="osint" aria-selected="false">OSINT</button>
                 </div>
               </div>
               <div class="ops-tool-panes">
@@ -130,6 +134,11 @@
                 <div class="ops-pane" id="ops-pane-edr" hidden>
                   <section class="edr-panel" id="edr-panel" aria-label="Endpoint EDR">
                     <div class="edr-empty">Claim a ticket to open the endpoint console.</div>
+                  </section>
+                </div>
+                <div class="ops-pane" id="ops-pane-osint" hidden>
+                  <section class="osint-panel" id="osint-panel" aria-label="Artifact OSINT desk">
+                    <div class="osint-empty">Claim a ticket to open the artifact desk.</div>
                   </section>
                 </div>
               </div>
@@ -156,6 +165,18 @@
           </aside>
           <section class="chat-pane empty" id="comms-detail">
             <div class="chat-empty"><p>Pick a conversation<br><span>or wait for the next ping</span></p></div>
+          </section>
+        </div>
+      </div>
+
+      <div id="panel-handoffs" class="panel pb-panel" hidden>
+        <div class="pb-layout comms-layout">
+          <aside class="pb-lib chat-sidebar">
+            <div class="lbl">Queue</div>
+            <div id="handoff-list"></div>
+          </aside>
+          <section class="ho-pane empty" id="handoff-detail">
+            <div class="chat-empty"><p>Pick a handoff<br><span>or wait for the next ask</span></p></div>
           </section>
         </div>
       </div>

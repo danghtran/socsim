@@ -5,11 +5,12 @@ import {
 } from "./constants.js";
 import { CATALOG } from "./catalog.js";
 import { edrFor, emptyEdrState, quarantineNeeded } from "./edr.js";
+import { artifactsFor, emptyOsintState, strongestVerdict } from "./artifacts.js";
 import { pivotsFor } from "./pivots.js";
 import { ensureAudio, tone } from "./audio.js";
 import {
   applyPlaybookToTicket, els, fly, focused, hideModal, hud, nextStep,
-  paint, setTab, setOpsTool, toast, updatePatience, renderEdr,
+  paint, setTab, setOpsTool, toast, updatePatience, renderEdr, renderOsint,
 } from "./render.js";
 import { renderPlaybooks, initPlaybooks } from "./playbooks.js";
 import { findInterrupt, firstInterruptAt, interruptGapMin, INTERRUPTS } from "./interrupts.js";
@@ -17,6 +18,10 @@ import { COMM_SENDERS } from "./comms-data.js";
 import {
   flushStaleComms, initComms, maybeSpawnComm, renderComms, resetComms, updateCommsBadge,
 } from "./comms.js";
+import {
+  flushStaleHandoffs, initHandoffs, maybeSpawnHandoff, renderHandoffs, resetHandoffs, updateHandoffBadge,
+} from "./handoffs.js";
+import { HANDOFF_SENDERS } from "./handoffs-data.js";
 import {
   S, emptyTicket, loadPlaybooks, saveSession, peekSession, clearSession, hasSession, emptyDraft,
 } from "./state.js";
@@ -64,13 +69,17 @@ function showInterrupt(tpl) {
   setTimeout(() => tone(300, 0.1, "square", 0.035), 70);
 
   const urg = tpl.urgency === "critical" ? "critical" : "urgent";
-  els.card.className = `interrupt-card ${urg}`;
+  const isExc = tpl.kind === "exception";
+  els.card.className = `interrupt-card ${urg}${isExc ? " exception" : ""}`;
+  const bannerLeft = isExc
+    ? "Exception review"
+    : urg === "critical" ? "Immediate action" : "Urgent";
   els.card.innerHTML = `
-    <div class="int-banner"><span>${urg === "critical" ? "Immediate action" : "Urgent"}</span><span>${tpl.tag || "Interrupt"}</span></div>
+    <div class="int-banner"><span>${bannerLeft}</span><span>${tpl.tag || "Interrupt"}</span></div>
     <p class="int-from">${tpl.from}</p>
     <h2>${tpl.title}</h2>
     <p>${tpl.body}</p>
-    <p class="int-hint">Desk is frozen until you choose.</p>
+    <p class="int-hint">${isExc ? "Approve or deny before the desk unfreezes." : "Desk is frozen until you choose."}</p>
     <div class="btns int-choices">
       ${tpl.choices.map((c) => `
         <button type="button" data-int-choice="${c.id}" class="${c.effect === "good" ? "pri" : ""}">${c.text}</button>
@@ -153,6 +162,8 @@ export function advanceWork(mins) {
   flushReturns();
   maybeSpawnComm();
   flushStaleComms();
+  maybeSpawnHandoff();
+  flushStaleHandoffs();
   maybeSpawnInterrupt();
   if (Math.floor(S.workMin) !== before) queueSave();
 }
@@ -286,6 +297,7 @@ function makeAlert(fixedKey, opts = {}) {
     noise: !!tpl.noise,
     pivots: pivotsFor(tpl.key, (tpl.stream || []).length),
     edr: emptyEdrState(),
+    osint: emptyOsintState(),
   };
 }
 
@@ -298,6 +310,34 @@ function ensureEdr(a) {
   if (!a.edr) a.edr = emptyEdrState();
   if (!a.edr.iocSearched) a.edr.iocSearched = {};
   return a.edr;
+}
+
+function ensureOsint(a) {
+  if (!a.osint) a.osint = emptyOsintState();
+  if (!a.osint.looked) a.osint.looked = {};
+  return a.osint;
+}
+
+function doOsintLookup(itemId) {
+  const a = ticketAlert();
+  if (!a) {
+    toast("Claim a ticket first");
+    return;
+  }
+  const st = ensureOsint(a);
+  const pack = artifactsFor(a.key);
+  const item = (pack.items || []).find((x) => x.id === itemId);
+  if (!item) return;
+  if (st.looked[item.id]) return;
+  st.looked[item.id] = true;
+  if (item.useful) rate(0.05);
+  const label = item.verdict === "malicious" ? "Malicious"
+    : item.verdict === "benign" ? "Benign"
+    : item.verdict === "suspicious" ? "Suspicious"
+    : "Unknown";
+  toast(`OSINT · ${item.kind} · ${label}`, item.verdict === "malicious" ? "bad" : item.verdict === "benign" ? "good" : "");
+  tone(item.verdict === "benign" ? 520 : item.verdict === "malicious" ? 300 : 400, 0.07, "triangle", 0.03);
+  doPaint();
 }
 
 function doEdrAction(kind, iocId) {
@@ -511,6 +551,21 @@ function push() {
     tone(240, 0.08);
     return;
   }
+  // Soft check: OSINT verdict vs chosen disposition (does not seal or block submit).
+  const hit = strongestVerdict(a);
+  if (hit) {
+    const noiseDisp = t.disp === "fp" || t.disp === "benign";
+    if ((hit.verdict === "malicious" || hit.verdict === "suspicious") && noiseDisp) {
+      rate(-0.15);
+    } else if (hit.verdict === "benign" && (t.disp === "contain" || t.disp === "escalate")) {
+      rate(-0.12);
+    } else if (
+      (hit.verdict === "malicious" && (t.disp === "contain" || t.disp === "escalate" || t.disp === "handoff"))
+      || (hit.verdict === "benign" && noiseDisp)
+    ) {
+      rate(0.06);
+    }
+  }
   if (playbookMatches(t, a)) {
     S.ticket = null;
     drop(a.id, "ok");
@@ -561,7 +616,8 @@ function tick(ts) {
     + ":" + S.queue.map((a) => {
       const e = a.edr || {};
       const iocs = Object.keys(e.iocSearched || {}).sort().join("");
-      return `${e.isolated ? 1 : 0}${e.killed ? 1 : 0}${e.quarantined ? 1 : 0}${iocs}`;
+      const o = Object.keys(a.osint?.looked || {}).sort().join("");
+      return `${e.isolated ? 1 : 0}${e.killed ? 1 : 0}${e.quarantined ? 1 : 0}${iocs}|${o}`;
     }).join("");
   if (sig !== S.qSig) {
     S.qSig = sig;
@@ -653,6 +709,11 @@ function hydrateAlert(raw, now) {
       ...(raw.edr || {}),
       iocSearched: { ...(raw.edr?.iocSearched || {}) },
     },
+    osint: {
+      ...emptyOsintState(),
+      ...(raw.osint || {}),
+      looked: { ...(raw.osint?.looked || {}) },
+    },
   };
 }
 
@@ -671,6 +732,30 @@ function hydrateComm(raw) {
     staled: !!raw.staled,
     effect: raw.effect,
     messages: raw.messages || [],
+  };
+}
+
+function hydrateHandoff(raw) {
+  const fromId = raw.fromId || raw.from?.id || "tier2";
+  return {
+    id: raw.id,
+    tplId: raw.tplId,
+    from: HANDOFF_SENDERS[fromId] || HANDOFF_SENDERS.tier2,
+    tag: raw.tag || "Handoff",
+    title: raw.title,
+    body: raw.body,
+    checklist: raw.checklist || [],
+    correctAction: raw.correctAction,
+    accept: raw.accept || {},
+    escalate: raw.escalate || {},
+    wrong: raw.wrong || {},
+    checks: { ...(raw.checks || {}) },
+    bornMin: raw.bornMin,
+    staleMin: raw.staleMin,
+    resolved: !!raw.resolved,
+    staled: !!raw.staled,
+    effect: raw.effect,
+    chosen: raw.chosen,
   };
 }
 
@@ -717,12 +802,21 @@ function applySession(data) {
   S.commsOk = data.commsOk || 0;
   S.commsBad = data.commsBad || 0;
   S.nextCommAt = data.nextCommAt ?? (S.workMin + 18);
+  S.handoffs = (data.handoffs || []).map(hydrateHandoff);
+  S.handoffSeen = new Set(data.handoffSeen || []);
+  S.handoffFocus = data.handoffFocus ?? null;
+  S.handoffUid = data.handoffUid || 1;
+  S.handoffOk = data.handoffOk || 0;
+  S.handoffBad = data.handoffBad || 0;
+  S.nextHandoffAt = data.nextHandoffAt ?? (S.workMin + 26);
   S.interruptSeen = new Set(data.interruptSeen || []);
   S.nextInterruptAt = data.nextInterruptAt ?? firstInterruptAt(S.workMin);
   S.interrupt = data.interrupt?.id ? { id: data.interrupt.id, shownAt: data.interrupt.shownAt || S.workMin } : null;
   S.pauseKind = null;
   setTab(data.tab === "edr" ? "console" : (data.tab || "console"));
-  setOpsTool(data.opsTool === "edr" ? "edr" : "playbooks");
+  setOpsTool(
+    data.opsTool === "edr" || data.opsTool === "osint" ? data.opsTool : "playbooks",
+  );
 }
 
 export function refreshSplash() {
@@ -779,7 +873,9 @@ export function resumeShift() {
   doPaint();
   if (S.tab === "playbooks") renderPlaybooks();
   if (S.tab === "comms") renderComms();
+  if (S.tab === "handoffs") renderHandoffs();
   updateCommsBadge();
+  updateHandoffBadge();
   cancelAnimationFrame(S.raf);
   S.raf = requestAnimationFrame(tick);
   tone(520, 0.1);
@@ -795,8 +891,8 @@ function showMorningBrief() {
     <p class="brief-lead">Day ${S.dayN} · you are Tier-1 on the console.</p>
     <div class="how">
       <div><i>1</i><div><b>Alert queue</b><span>Correlations land from SIEM, EDR, mail, IdP. Up to three wait at once.</span></div></div>
-      <div><i>2</i><div><b>Claim & investigate</b><span>Read the stream and Hunt pivots. Switch Playbooks / EDR under the ticket. Urgent floor popups freeze the desk until you answer.</span></div></div>
-      <div><i>3</i><div><b>Answer Comms</b><span>Helpdesk, users, IR, and your manager will ping. Bad replies can quietly make threats worse.</span></div></div>
+      <div><i>2</i><div><b>Claim & investigate</b><span>Read the stream and Hunt pivots. Switch Playbooks / EDR / OSINT under the ticket. Urgent floor popups freeze the desk until you answer.</span></div></div>
+      <div><i>3</i><div><b>Answer Comms & Handoff</b><span>Reply to desk pings. On Handoff, accept or escalate Tier-2 / IR asks with the checklist — wrong calls hurt your mgr score.</span></div></div>
     </div>
     <p>Wall clock runs 08:00–16:00. Take a break anytime. End the day when you wrap.</p>
     <div class="btns"><button class="pri" id="gotit">Start triage</button></div>`;
@@ -834,9 +930,10 @@ export function startShift() {
   S.qSig = "";
   S.recent = [];
   S.pending = [];
-  resetComms();
-  resetInterrupts();
   S.workMin = DAY_START_MIN;
+  resetComms();
+  resetHandoffs();
+  resetInterrupts();
   S.eodShown = false;
   S.draft = emptyDraft();
   S.editingId = null;
@@ -879,6 +976,7 @@ export function endShift() {
       <div><b>${S.closed}</b><small>cases closed</small></div>
       <div><b>${esc}</b><small>mishandled</small></div>
       <div><b>${S.commsOk}/${S.commsOk + S.commsBad}</b><small>comms ok</small></div>
+      <div><b>${S.handoffOk}/${S.handoffOk + S.handoffBad}</b><small>handoff ok</small></div>
       <div><b>${S.stars.toFixed(1)}</b><small>mgr rating</small></div>
     </div>
     <p>Signed off at <b style="color:var(--amber)">${fmtWork(S.workMin)}</b> · Day ${S.dayN}</p>
@@ -905,9 +1003,10 @@ export function showHow() {
     <div class="how">
       <div><i>1</i><div><b>Clock in</b><span>You are Tier-1. Alerts land as SIEM correlations — a stream of events, not a single popup.</span></div></div>
       <div><i>2</i><div><b>Build playbooks</b><span>On the Playbooks tab, name a book and select attack-chain steps, remediation, and disposition.</span></div></div>
-      <div><i>3</i><div><b>Claim & apply</b><span>On Console, claim a ticket, read Hunt pivots / EDR timeline, then apply a playbook. Isolate or kill only when the host is the patient.</span></div></div>
+      <div><i>3</i><div><b>Claim & apply</b><span>On Console, claim a ticket, read Hunt pivots / EDR / OSINT, then apply a playbook. Isolate or kill only when the host is the patient.</span></div></div>
       <div><i>4</i><div><b>Submit the case</b><span>Apply the right playbook. Misses aren’t always obvious — unfinished threats can return later as a worse alert.</span></div></div>
       <div><i>5</i><div><b>Comms tab</b><span>Reply to helpdesk, users, IR, and manager pings. A bad all-clear can bring a threat back.</span></div></div>
+      <div><i>6</i><div><b>Handoff tab</b><span>Accept or escalate Tier-2 / IR asks. Tick the checklist — traps and wrong routes cut manager score like bad Comms.</span></div></div>
     </div>
     <p>Discard resets a bad draft. Wall clock is atmospheric for now — SLA timers stay off until you re-enable them.</p>
     <div class="btns"><button class="pri" id="gotit">Got it</button></div>`;
@@ -926,6 +1025,19 @@ export function wireShift() {
     },
   });
   initComms({
+    toast,
+    tone,
+    rate,
+    scheduleReturnByKey,
+    onPaint: () => {
+      if (S.tab === "console") doPaint();
+      else {
+        hud(advanceWork);
+        queueSave();
+      }
+    },
+  });
+  initHandoffs({
     toast,
     tone,
     rate,
@@ -983,6 +1095,13 @@ export function wireShift() {
     hud(advanceWork);
     queueSave();
   };
+  els.tabHandoffs.onclick = () => {
+    setTab("handoffs");
+    renderHandoffs();
+    updateHandoffBadge();
+    hud(advanceWork);
+    queueSave();
+  };
 
   document.querySelector(".ops-tools")?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-ops-tool]");
@@ -1003,6 +1122,12 @@ export function wireShift() {
     const btn = e.target.closest("[data-edr]");
     if (!btn || btn.disabled) return;
     doEdrAction(btn.dataset.edr, btn.dataset.ioc);
+  });
+
+  els.osintPanel?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-osint]");
+    if (!btn || btn.disabled) return;
+    doOsintLookup(btn.dataset.osint);
   });
 
   document.addEventListener("keydown", (e) => {
